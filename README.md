@@ -14,6 +14,13 @@ Or via NPM:
 
     npm install -g tcpmultiplexer
 
+## Usage
+
+1. Start the multiplexer from command line
+2. Connect clients to localhost:3333
+3. In multiplxer command line, input command `connect <server> <port>` to connect to the remote service that will be shared by all the clients.
+4. At any time, you can terminate a client, or connect a new client, without affecting the connection to the remote server.
+
 
 ## Introduction
 
