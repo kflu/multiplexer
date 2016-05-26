@@ -1,39 +1,61 @@
-﻿using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net.Sockets;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
-
-namespace Multiplexer
+﻿namespace Multiplexer
 {
-    class Remote : IDisposable
+    using System;
+    using System.Collections.Concurrent;
+    using System.Collections.Generic;
+    using System.Linq;
+    using System.Net.Sockets;
+    using System.Text;
+    using System.Threading;
+    using System.Threading.Tasks;
+
+    public interface IRemoteInfo
     {
-        TcpClient client;
-        NetworkStream stream;
-        Action<byte[]> receive;
+        bool Connected { get; }
+        string RemoteAddress { get; }
+    }
+
+    class Remote : IDisposable, IRemoteInfo
+    {
+        readonly TcpClient client;
+        readonly NetworkStream stream;
+        readonly Action<byte[]> receive;
         readonly BlockingCollection<byte[]> uplinkQueue;
-        CancellationTokenSource cts = new CancellationTokenSource();
+        readonly CancellationToken ct;
+        readonly CancellationTokenSource linkedCTS;
+
+        public bool Connected => client.Connected;
+        public string RemoteAddress => $"{client.Client.RemoteEndPoint}";
 
         public Remote(
             TcpClient client,
-            BlockingCollection<byte[]> uplinkQueue, 
+            BlockingCollection<byte[]> uplinkQueue,
+            CancellationToken externalCancellationToken, 
             Action<byte[]> receive)
         {
             this.client = client;
             this.uplinkQueue = uplinkQueue;
             this.receive = receive;
+
+            /*
+             * Create a linked cancellation token that is cancelled when:
+             * - external cancellation is requested, or
+             * - the token of the linked CTS is cancelled
+             *
+             * Note that the cancellation of the linked source won't propagate to the external token
+             */
+            linkedCTS = CancellationTokenSource.CreateLinkedTokenSource(externalCancellationToken);
+            ct = linkedCTS.Token;
+
             stream = client.GetStream();
         }
 
         async Task HandleDownlink()
         {
-            cts.Token.ThrowIfCancellationRequested();
+            ct.ThrowIfCancellationRequested();
             int c;
             byte[] buffer = new byte[256];
-            while ((c = await stream.ReadAsync(buffer, 0, buffer.Length, cts.Token)) > 0)
+            while ((c = await stream.ReadAsync(buffer, 0, buffer.Length, ct)) > 0)
             {
                 receive(buffer.Take(c).ToArray());
             }
@@ -41,11 +63,11 @@ namespace Multiplexer
 
         async Task HandleUplink()
         {
-            cts.Token.ThrowIfCancellationRequested();
+            ct.ThrowIfCancellationRequested();
             byte[] data;
-            while (null != (data = uplinkQueue.Take(cts.Token)))
+            while (null != (data = uplinkQueue.Take(ct)))
             {
-                await stream.WriteAsync(data, 0, data.Length, cts.Token);
+                await stream.WriteAsync(data, 0, data.Length, ct);
             }
         }
 
@@ -53,10 +75,10 @@ namespace Multiplexer
         {
             try
             {
-                var downlinkTask = Task.Run(HandleDownlink, cts.Token);
-                var uplinkTask = Task.Run(HandleUplink, cts.Token);
+                var downlinkTask = Task.Run(HandleDownlink, ct);
+                var uplinkTask = Task.Run(HandleUplink, ct);
 
-                await Task.WhenAny(downlinkTask, uplinkTask);
+                await await Task.WhenAny(downlinkTask, uplinkTask);
             }
             catch (Exception e)
             {
@@ -64,7 +86,7 @@ namespace Multiplexer
             }
             finally
             {
-                cts.Cancel();
+                linkedCTS.Cancel();
                 Console.WriteLine("Remote connection exited.");
                 this.Dispose();
             }
@@ -73,17 +95,9 @@ namespace Multiplexer
         public void Dispose()
         {
             Console.WriteLine("Disposing of remote connection");
-            if (stream != null)
-            {
-                stream.Dispose();
-                stream = null;
-            }
-
-            if (client != null)
-            {
-                client.Close();
-                client = null;
-            }
+            linkedCTS.Dispose();
+            stream.Dispose();
+            client.Close();
         }
     }
 }

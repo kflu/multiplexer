@@ -1,91 +1,71 @@
-﻿using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Net;
-using System.Net.Sockets;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Multiplexer
+﻿namespace Multiplexer
 {
+    using System;
+    using System.Collections.Concurrent;
+    using System.Threading;
+    using System.Threading.Tasks;
+
     class Program
     {
-        static BlockingCollection<byte[]> UploadQueue = new BlockingCollection<byte[]>();
-        static ConcurrentDictionary<Client, byte> clients = new ConcurrentDictionary<Client, byte>();
-
         static void Main(string[] args)
         {
-            Task.Run(() => HandleControlChannel((host, port) =>
-            {
-                StartServer(host, port);
-            }));
+            var ctrl = new ControlChannel();
+            var clientServer = new ClientServer(3333, Global.Instance.UploadQueue, Global.Instance.Clients);
 
-            var localserver = new TcpListener(IPAddress.Parse("127.0.0.1"), 3333);
-            localserver.Start();
+            Task.WaitAny(
+                Task.Run(() => ctrl.Run(), Global.Instance.CancellationToken),
+                Task.Run(() => clientServer.Run(), Global.Instance.CancellationToken));
+        }
+    }
 
-            while (true)
-            {
-                Console.WriteLine("Waiting for clients to connect...");
-                var client = localserver.AcceptTcpClient();
+    class Global
+    {
+        static Global instance = new Global();
+        public static Global Instance => instance;
+        private Global() { }
 
-                var clientWrapper = new Client(client, data => UploadQueue.TryAdd(data));
-                Console.WriteLine($"Client connected: {clientWrapper}");
-                clients[clientWrapper] = 0;
-                clientWrapper.OnClose = () =>
-                {
-                    Console.WriteLine($"Removing client from clients list: {clientWrapper}");
-                    byte c;
-                    clients.TryRemove(clientWrapper, out c);
-                };
+        public BlockingCollection<byte[]> UploadQueue => uploadQueue;
+        public ConcurrentDictionary<Client, byte> Clients => clients;
+        public CancellationToken CancellationToken => cts.Token;
+        public IRemoteInfo Remote => remote ?? new DummyRemote();
 
-                var tsk = clientWrapper.Start();
-            }
+        BlockingCollection<byte[]> uploadQueue = new BlockingCollection<byte[]>();
+        ConcurrentDictionary<Client, byte> clients = new ConcurrentDictionary<Client, byte>();
+        CancellationTokenSource cts = new CancellationTokenSource();
+        IRemoteInfo remote;
+
+        public IRemoteInfo RegisterRemote(IRemoteInfo remote)
+        {
+            return Interlocked.Exchange(ref this.remote, remote);
         }
 
-        static void HandleControlChannel(Action<string, int> handleConnect)
+        public void Cancel()
         {
-            while (true)
+            if (!cts.Token.IsCancellationRequested)
             {
-                var line = Console.ReadLine();
-
-                var toks = line.Split();
-                switch (toks[0])
+                lock(cts)
                 {
-                    case "connect":
-                        try
-                        {
-                            handleConnect(
-                                toks[1],
-                                int.Parse(toks[2]));
-                        }
-                        catch (Exception e)
-                        {
-                            Console.WriteLine(e.ToString());
-                        }
-
-                        break;
-                    default:
-                        Console.WriteLine("Unknown command: " + line);
-                        break;
+                    if (!cts.Token.IsCancellationRequested)
+                    {
+                        cts.Cancel();
+                        cts.Dispose();
+                        cts = new CancellationTokenSource();
+                    }
                 }
             }
         }
 
-        static Task StartServer(string hostname, int port)
+        public void ResetUploadQueue()
         {
-            Console.WriteLine($"Connecting to {hostname}:{port}");
-            var remote = new TcpClient(hostname, port);
-            var server = new Remote(remote, UploadQueue, data =>
-            {
-                foreach (var client in clients)
-                {
-                    client.Key.DownlinkQueue.TryAdd(data);
-                }
-            });
+            Console.WriteLine($"Resetting upload queue ({uploadQueue.Count})");
+            byte[] b;
+            while (uploadQueue.TryTake(out b)) { }
+        }
 
-            return server.Start();
+        class DummyRemote : IRemoteInfo
+        {
+            public bool Connected => false;
+            public string RemoteAddress => "";
         }
     }
 }

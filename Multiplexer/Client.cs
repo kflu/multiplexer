@@ -1,21 +1,19 @@
-﻿using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net;
-using System.Net.Sockets;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
-
-namespace Multiplexer
+﻿namespace Multiplexer
 {
+    using System;
+    using System.Collections.Concurrent;
+    using System.Linq;
+    using System.Net.Sockets;
+    using System.Threading;
+    using System.Threading.Tasks;
+
     class Client : IDisposable
     {
-        TcpClient client;
-        Action<byte[]> upload;
-        NetworkStream stream;
-        BlockingCollection<byte[]> downlinkQueue = new BlockingCollection<byte[]>();
+        readonly TcpClient client;
+        readonly Action<byte[]> upload;
+        readonly NetworkStream stream;
+        readonly BlockingCollection<byte[]> downlinkQueue = new BlockingCollection<byte[]>();
+        readonly CancellationTokenSource cts;
 
         public BlockingCollection<byte[]> DownlinkQueue
         {
@@ -25,13 +23,13 @@ namespace Multiplexer
             }
         }
 
-        readonly CancellationTokenSource cts = new CancellationTokenSource();
         public Action OnClose { get; set; }
 
-        public Client(TcpClient client, Action<byte[]> upload)
+        public Client(TcpClient client, CancellationToken externalCancellationToken, Action<byte[]> upload)
         {
             this.client = client;
             this.upload = upload;
+            this.cts = CancellationTokenSource.CreateLinkedTokenSource(externalCancellationToken);
             this.stream = client.GetStream();
         }
 
@@ -42,7 +40,7 @@ namespace Multiplexer
 
             try
             {
-                await Task.WhenAny(uplinkTask, downlinkTask);
+                await await Task.WhenAny(uplinkTask, downlinkTask);
             }
             catch (Exception e)
             {
@@ -87,17 +85,9 @@ namespace Multiplexer
         {
             Console.WriteLine($"Disposing of client: {this}");
             OnClose();
-            if (stream != null)
-            {
-                stream.Dispose();
-                stream = null;
-            }
-
-            if (client != null)
-            {
-                client.Close();
-                client = null;
-            }
+            cts.Dispose();
+            stream.Dispose();
+            client.Close();
         }
     }
 }
