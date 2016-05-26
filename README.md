@@ -5,6 +5,10 @@ Sharing a server TCP connection between multiple clients
 
 ## Install
 
+_As the pre release, I only build this for Windows platform. But you can build
+it on other platforms using Mono. It should be easy since there's no external
+dependencies._
+
 Grab the binary from [release](https://github.com/kflu/multiplexer/releases).
 Or via NPM:
 
