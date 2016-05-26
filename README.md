@@ -39,6 +39,15 @@ tool that doesn't offer the functionality that your automation program is
 capable of, but provides an easy/familiar UI, so that your automation program 
 won't have to.
 
+
+## Performance
+
+All TCP connections (server-multiplexer, multiplexer-clients) IO operations
+are completely non-blocking. I expect the traffic throughput to be very high.
+
+
+## Demo
+
 Here's a demonstration of it in action. As an example, in this case, there're
 two MUD clients sharing the same connection to the server. Imagine one of the
 two clients is a thin program that automates your player, but provides no
