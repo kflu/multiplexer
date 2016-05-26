@@ -1,0 +1,17 @@
+{
+    "name": "tcpmultiplexer",
+    "version": "0.1.1",
+    "description": "Sharing a server TCP connection between multiple clients",
+    "main": "lib/serman.js",
+    "scripts": {
+        "compile": "MSBuild.exe /p:Configuration=release"
+    },
+    "bin": {
+        "multiplexer": "Multiplexer/bin/Release/Multiplexer.exe"
+    },
+    "files": [
+        "Multiplexer/bin/Release/"
+    ],
+    "author": "kflu",
+    "license": "ISC"
+}
