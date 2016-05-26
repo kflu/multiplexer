@@ -9,21 +9,18 @@
     {
         static void Main(string[] args)
         {
-            var ctrl = new ControlChannel();
-            var clientServer = new ClientServer(3333, Global.Instance.UploadQueue, Global.Instance.Clients);
+            var glob = new Global();
+            var ctrl = new ControlChannel(glob);
+            var clientServer = new ClientServer(3333, glob);
 
             Task.WaitAny(
-                Task.Run(() => ctrl.Run(), Global.Instance.CancellationToken),
-                Task.Run(() => clientServer.Run(), Global.Instance.CancellationToken));
+                Task.Run(() => ctrl.Run(), glob.CancellationToken),
+                Task.Run(() => clientServer.Run(), glob.CancellationToken));
         }
     }
 
     class Global
     {
-        static Global instance = new Global();
-        public static Global Instance => instance;
-        private Global() { }
-
         public BlockingCollection<byte[]> UploadQueue => uploadQueue;
         public ConcurrentDictionary<Client, byte> Clients => clients;
         public CancellationToken CancellationToken => cts.Token;

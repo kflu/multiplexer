@@ -10,6 +10,12 @@
 
     class ControlChannel
     {
+        Global glob;
+        public ControlChannel(Global glob)
+        {
+            this.glob = glob;
+        }
+
         public void Run()
         {
             while (true)
@@ -20,27 +26,27 @@
                 switch (toks[0])
                 {
                     case "connect":
-                        if (Global.Instance.Remote.Connected)
+                        if (glob.Remote.Connected)
                         {
                             Console.WriteLine("Error: Remote is connected. Try disconnect first");
                         }
 
-                        Console.WriteLine($"Resetting upload queue (count={Global.Instance.UploadQueue.Count})");
-                        Global.Instance.ResetUploadQueue();
+                        Console.WriteLine($"Resetting upload queue (count={glob.UploadQueue.Count})");
+                        glob.ResetUploadQueue();
                         // This is a fire-and-forget task. It is the responsibility of
                         // the task to properly handle resource clean up.
                         Task.Run(() => StartServer(toks[1], int.Parse(toks[2])));
                         break;
                     case "disconnect":
                         Console.WriteLine("Disconnecting");
-                        Global.Instance.Cancel();
+                        glob.Cancel();
                         break;
                     case "stats":
                         DumpStats();
                         break;
                     case "quit":
                         Console.WriteLine("Exiting...");
-                        Global.Instance.Cancel();
+                        glob.Cancel();
                         return;
                     default:
                         Console.WriteLine("Unknown command: " + line);
@@ -53,8 +59,8 @@
         {
             var info = new
             {
-                Clients = Global.Instance.Clients.Select(c => c.ToString()).ToArray(),
-                UploadQueue = Global.Instance.UploadQueue.Select(msg => System.Text.Encoding.UTF8.GetString(msg)).ToArray(),
+                Clients = glob.Clients.Select(c => c.ToString()).ToArray(),
+                UploadQueue = glob.UploadQueue.Select(msg => System.Text.Encoding.UTF8.GetString(msg)).ToArray(),
             };
             Console.WriteLine(JsonConvert.SerializeObject(info, Formatting.Indented));
         }
@@ -63,15 +69,15 @@
         {
             Console.WriteLine($"Connecting to {hostname}:{port}");
             var remote = new TcpClient(hostname, port);
-            var server = new Remote(remote, Global.Instance.UploadQueue, Global.Instance.CancellationToken, data =>
+            var server = new Remote(remote, glob.UploadQueue, glob.CancellationToken, data =>
             {
-                foreach (var client in Global.Instance.Clients)
+                foreach (var client in glob.Clients)
                 {
                     client.Key.DownlinkQueue.TryAdd(data);
                 }
             });
 
-            Global.Instance.RegisterRemote(server);
+            glob.RegisterRemote(server);
 
             try
             {

@@ -15,19 +15,15 @@ namespace Multiplexer
     /// </summary>
     class ClientServer
     {
-        readonly ConcurrentDictionary<Client, byte> clients;
-        public ConcurrentDictionary<Client, byte> Clients => clients;
         readonly int port;
-        readonly BlockingCollection<byte[]> uploadQueue;
+        Global glob;
 
         public ClientServer(
             int port, 
-            BlockingCollection<byte[]> uploadQueue,
-            ConcurrentDictionary<Client, byte> clients)
+            Global glob)
         {
             this.port = port;
-            this.uploadQueue = uploadQueue;
-            this.clients = clients;
+            this.glob = glob;
         }
 
         public void Run()
@@ -40,14 +36,14 @@ namespace Multiplexer
                 Console.WriteLine("Waiting for clients to connect...");
                 var client = localserver.AcceptTcpClient();
 
-                var clientWrapper = new Client(client, Global.Instance.CancellationToken, Upload);
+                var clientWrapper = new Client(client, glob.CancellationToken, Upload);
                 Console.WriteLine($"Client connected: {clientWrapper}");
-                clients[clientWrapper] = 0;
+                glob.Clients[clientWrapper] = 0;
                 clientWrapper.OnClose = () =>
                 {
                     Console.WriteLine($"Removing client from clients list: {clientWrapper}");
                     byte c;
-                    clients.TryRemove(clientWrapper, out c);
+                    glob.Clients.TryRemove(clientWrapper, out c);
                 };
 
                 var tsk = clientWrapper.Start();
@@ -57,9 +53,9 @@ namespace Multiplexer
         void Upload(byte[] data)
         {
             // Do not enqueue data if remote is not connected
-            if (Global.Instance.Remote.Connected)
+            if (glob.Remote.Connected)
             {
-                uploadQueue.TryAdd(data);
+                glob.UploadQueue.TryAdd(data);
             }
         }
     }
