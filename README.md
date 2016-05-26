@@ -19,7 +19,7 @@ generated from any client is forwarded to the server.
 
 This graph demonstrates the idea
 
-![high level idea](doc/highlevel.png)
+<img src="doc/highlevel.png" width="500">
 
 
 How is it useful? In many cases, we want to write program to automate tasks
