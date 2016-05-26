@@ -10,7 +10,7 @@ it on other platforms using Mono. It should be easy since there's no external
 dependencies._
 
 Grab the binary from [release](https://github.com/kflu/multiplexer/releases).
-Or via NPM:
+Or via [NPM](https://www.npmjs.com/package/tcpmultiplexer):
 
     npm install -g tcpmultiplexer
 
@@ -30,7 +30,7 @@ generated from any client is forwarded to the server.
 
 This graph demonstrates the idea
 
-<img src="doc/highlevel.png" width="500">
+<img src="doc/highlevel.png" width="400">
 
 
 How is it useful? In many cases, we want to write program to automate tasks
