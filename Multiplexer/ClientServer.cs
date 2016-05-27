@@ -34,6 +34,12 @@
             while (true)
             {
                 Console.WriteLine("Waiting for clients to connect...");
+
+                // AcceptTcpClientAsync() does not accept a cancellation token. But it's OK since
+                // in no case would I want the client listener loop to stop running during the entire
+                // multiplexer lifecycle. For the sake of completeness, if it is necessary to cancel
+                // this operation, one could use CancellationToken.Register(localserver.Stop).
+                // See: http://stackoverflow.com/a/30856169/695964
                 var client = await localserver.AcceptTcpClientAsync();
 
                 var clientWrapper = new Client(client, glob.CancellationToken, Upload);
