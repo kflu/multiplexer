@@ -25,15 +25,21 @@ Or via [NPM](https://www.npmjs.com/package/tcpmultiplexer):
 ```
 > multiplexer --help
 
-  -a, --auto-connect    (Default: false) Whether to auto connect to remote
-                        server when the first client connects
-  -p, --port            (Default: 3333) Local port to listen for client
-                        connections
-  -r, --remote-host     Remote server to connect (for auto-connect)
-  -t, --remote-port     Remote port to connect (for auto-connect)
-  --help                Display this help screen.
-  --version             Display version information.
+  -p, --port              (Default: 3333) Local port to listen for client
+                          connections
+  --help                  Display this help screen.
+  --version               Display version information.
+  remote-host (pos. 0)    Remote server to connect (for auto-connect). If not
+                          specified, auto-connect is disabled.
+  remote-port (pos. 1)    Remote port to connect (for auto-connect). If not
+                          specified, auto-connect is disabled.
 ```
+
+**Example**
+
+    multiplexer example.com 8080 -p 3333
+
+Listens at `localhost:3333` for client connections. Upon first client connection, automatically connects to remote server `example.com:8080`.
 
 
 ## Introduction
