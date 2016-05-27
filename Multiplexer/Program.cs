@@ -51,16 +51,15 @@
 
     class Configuration
     {
-        [CommandLine.Option('a', "auto-connect", Default = false, HelpText = "Whether to auto connect to remote server when the first client connects")]
-        public bool AutoConnect { get; set; }
+        [CommandLine.Value(0, MetaName = "remote-host", HelpText = "Remote server to connect (for auto-connect). If not specified, auto-connect is disabled.")]
+        public string RemoteHost { get; set; }
+
+        [CommandLine.Value(1, MetaName = "remote-port", HelpText = "Remote port to connect (for auto-connect). If not specified, auto-connect is disabled.")]
+        public int RemotePort { get; set; }
 
         [CommandLine.Option('p', "port", Default = 3333, HelpText = "Local port to listen for client connections")]
         public int Port { get; set; }
 
-        [CommandLine.Option('r', "remote-host", HelpText = "Remote server to connect (for auto-connect)")]
-        public string RemoteHost { get; set; }
-
-        [CommandLine.Option('t', "remote-port", HelpText = "Remote port to connect (for auto-connect)")]
-        public int RemotePort { get; set; }
+        public bool AutoConnect => !string.IsNullOrEmpty(RemoteHost) && RemotePort > 0;
     }
 }
