@@ -1,6 +1,6 @@
 {
     "name": "tcpmultiplexer",
-    "version": "0.3.2",
+    "version": "0.3.3",
     "description": "Sharing a server TCP connection between multiple clients",
     "main": "lib/serman.js",
     "scripts": {
