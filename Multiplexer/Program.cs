@@ -57,10 +57,10 @@
         [CommandLine.Option('p', "port", Default = 3333, HelpText = "Local port to listen for client connections")]
         public int Port { get; set; }
 
-        [CommandLine.Option('r', "remote-host", HelpText = "Remote server to connect")]
+        [CommandLine.Option('r', "remote-host", HelpText = "Remote server to connect (for auto-connect)")]
         public string RemoteHost { get; set; }
 
-        [CommandLine.Option('t', "remote-port", HelpText = "Remote port to connect")]
+        [CommandLine.Option('t', "remote-port", HelpText = "Remote port to connect (for auto-connect)")]
         public int RemotePort { get; set; }
     }
 }
