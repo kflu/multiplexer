@@ -22,6 +22,20 @@ Or via [NPM](https://www.npmjs.com/package/tcpmultiplexer):
 4. At any time, you can terminate a client, or connect a new client, without affecting the connection to the remote server.
 
 
+```
+> multiplexer --help
+
+  -a, --auto-connect    (Default: false) Whether to auto connect to remote
+                        server when the first client connects
+  -p, --port            (Default: 3333) Local port to listen for client
+                        connections
+  -r, --remote-host     Remote server to connect (for auto-connect)
+  -t, --remote-port     Remote port to connect (for auto-connect)
+  --help                Display this help screen.
+  --version             Display version information.
+```
+
+
 ## Introduction
 
 This tool allows multiple TCP clients to share a single TCP connection to 
