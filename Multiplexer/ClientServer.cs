@@ -23,6 +23,8 @@
             this.glob = glob;
         }
 
+        public event Action OnConnected;
+
         /// <summary>
         /// Continuously listening for client connection requests
         /// </summary>
@@ -33,7 +35,7 @@
 
             while (true)
             {
-                Console.WriteLine("Waiting for clients to connect...");
+                Console.WriteLine($"Waiting for clients to connect at {localserver.LocalEndpoint}...");
 
                 // AcceptTcpClientAsync() does not accept a cancellation token. But it's OK since
                 // in no case would I want the client listener loop to stop running during the entire
@@ -55,6 +57,8 @@
                     byte c;
                     glob.Clients.TryRemove(clientWrapper, out c);
                 };
+
+                OnConnected?.Invoke();
 
                 // Start the client. This is fire-and-forget. We don't want to await on it. I
                 // t's OK because Start() has necessary logic to handle client termination and disposal.

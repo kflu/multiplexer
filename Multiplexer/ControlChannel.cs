@@ -2,6 +2,8 @@
 {
     using Newtonsoft.Json;
     using System;
+    using System.Collections.Concurrent;
+    using System.IO;
     using System.Linq;
     using System.Net.Sockets;
     using System.Threading.Tasks;
@@ -11,17 +13,56 @@
     /// </summary>
     class ControlChannel
     {
+        BlockingCollection<string> cmdQueue = new BlockingCollection<string>();
         Global glob;
         public ControlChannel(Global glob)
         {
             this.glob = glob;
         }
 
-        public void Run()
+        public bool SubmitCommand(string line)
         {
-            while (true)
+            return cmdQueue.TryAdd(line);
+        }
+
+        public async Task Run()
+        {
+            try
             {
-                var line = Console.ReadLine();
+                await await Task.WhenAny(
+                    Task.Run(() => GetCommandsFromStdin()),
+                    Task.Run(() => HandleCommands()));
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+            }
+            finally
+            {
+                // Ideally, when one of the tasks is terminated, we should cancel the other.
+                // But in case of control channel, when it's terminated, the whole app is going
+                // down. So don't bother.
+                Console.WriteLine("Control channel terminated");
+            }
+        }
+
+        void GetCommandsFromStdin()
+        {
+            string line;
+            while (true)
+            //while (null != (line = Console.ReadLine()))
+            {
+                line = Console.ReadLine();
+                cmdQueue.TryAdd(line);
+            }
+        }
+
+        void HandleCommands()
+        {
+            bool quit = false;
+            while (!quit)
+            {
+                var line = cmdQueue.Take();
 
                 var toks = line.Split();
                 switch (toks[0])
@@ -74,7 +115,8 @@
                     case "quit":
                         Console.WriteLine("Exiting...");
                         glob.Cancel();
-                        return; // terminate the control channel loop
+                        quit = true; // terminate the control channel loop
+                        break;
                     
                     default:
                         Console.WriteLine("Unknown command: " + line);
@@ -134,6 +176,7 @@
             finally
             {
                 Console.WriteLine($"Disposing remote connection: {server}");
+                glob.RegisterRemote(null); // unregister remote connection
                 server.Dispose();
                 server = null;
 

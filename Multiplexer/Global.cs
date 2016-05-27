@@ -29,6 +29,8 @@
         /// </summary>
         public CancellationToken CancellationToken => cts.Token;
 
+        public Configuration Config => config;
+
         /// <summary>
         /// A readonly object holding status for the remote connection
         /// </summary>
@@ -38,12 +40,23 @@
         private ConcurrentDictionary<Client, byte> clients = new ConcurrentDictionary<Client, byte>();
         private CancellationTokenSource cts = new CancellationTokenSource();
         private IRemoteInfo remote;
+        private Configuration config;
+
+        public Global(Configuration config)
+        {
+            this.config = config;
+        }
 
         /// <summary>
         /// Register remote connection
         /// </summary>
         public IRemoteInfo RegisterRemote(IRemoteInfo remote)
         {
+            if (remote == null)
+            {
+                this.RegisterRemote(new DummyRemote());
+            }
+
             return Interlocked.Exchange(ref this.remote, remote);
         }
 
