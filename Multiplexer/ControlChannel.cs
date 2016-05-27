@@ -15,6 +15,7 @@
     {
         BlockingCollection<string> cmdQueue = new BlockingCollection<string>();
         Global glob;
+
         public ControlChannel(Global glob)
         {
             this.glob = glob;
