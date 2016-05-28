@@ -29,10 +29,12 @@
         public async Task Run()
         {
             try
-            {
-                await await Task.WhenAny(
+            { 
+                var taskWrapper = await Task.WhenAny(
                     Task.Run(() => GetCommandsFromStdin()),
-                    Task.Run(() => HandleCommands()));
+                    Task.Run(() => HandleCommands()))
+                    .ConfigureAwait(false);
+                await taskWrapper.ConfigureAwait(false);
             }
             catch (Exception e)
             {
@@ -168,7 +170,7 @@
             try
             {
                 // Start and wait for the remote connection to terminate
-                await server.Start();
+                await server.Start().ConfigureAwait(false);
             }
             catch (Exception e)
             {

@@ -42,7 +42,7 @@
                 // multiplexer lifecycle. For the sake of completeness, if it is necessary to cancel
                 // this operation, one could use CancellationToken.Register(localserver.Stop).
                 // See: http://stackoverflow.com/a/30856169/695964
-                var client = await localserver.AcceptTcpClientAsync();
+                var client = await localserver.AcceptTcpClientAsync().ConfigureAwait(false);
 
                 var clientWrapper = new Client(client, glob.CancellationToken, Upload);
                 Console.WriteLine($"Client connected: {clientWrapper}");

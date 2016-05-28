@@ -65,7 +65,7 @@
             try
             {
                 // Await for either of the downlink or uplink task to finish
-                await await Task.WhenAny(uplinkTask, downlinkTask);
+                await (await Task.WhenAny(uplinkTask, downlinkTask).ConfigureAwait(false)).ConfigureAwait(false);
             }
             catch (Exception e)
             {
@@ -88,7 +88,7 @@
             cts.Token.ThrowIfCancellationRequested();
             int c;
             byte[] buffer = new byte[256];
-            while ((c = await stream.ReadAsync(buffer, 0, buffer.Length, cts.Token)) > 0)
+            while ((c = await stream.ReadAsync(buffer, 0, buffer.Length, cts.Token).ConfigureAwait(false)) > 0)
             {
                 upload(buffer.Take(c).ToArray());
             }
@@ -105,7 +105,7 @@
             // This would block if the downlink queue is empty
             while (null != (data = downlinkQueue.Take(cts.Token)))
             {
-                await stream.WriteAsync(data, 0, data.Length, cts.Token);
+                await stream.WriteAsync(data, 0, data.Length, cts.Token).ConfigureAwait(false);
             }
         }
 

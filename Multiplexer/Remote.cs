@@ -75,7 +75,7 @@
             linkedCTS.Token.ThrowIfCancellationRequested();
             int c;
             byte[] buffer = new byte[256];
-            while ((c = await stream.ReadAsync(buffer, 0, buffer.Length, linkedCTS.Token)) > 0)
+            while ((c = await stream.ReadAsync(buffer, 0, buffer.Length, linkedCTS.Token).ConfigureAwait(false)) > 0)
             {
                 // Receive is non-blocking
                 receive(buffer.Take(c).ToArray());
@@ -95,7 +95,7 @@
             // Taking from the queue can be blocked if there's nothing in the queue for consumption
             while (null != (data = uplinkQueue.Take(linkedCTS.Token)))
             {
-                await stream.WriteAsync(data, 0, data.Length, linkedCTS.Token);
+                await stream.WriteAsync(data, 0, data.Length, linkedCTS.Token).ConfigureAwait(false);
             }
         }
 
@@ -110,7 +110,7 @@
                 var uplinkTask = Task.Run(HandleUplink, linkedCTS.Token);
 
                 // If either task returns, the connection is considered to be terminated.
-                await await Task.WhenAny(downlinkTask, uplinkTask);
+                await (await Task.WhenAny(downlinkTask, uplinkTask).ConfigureAwait(false)).ConfigureAwait(false);
             }
             catch (Exception e)
             {
