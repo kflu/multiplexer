@@ -29,12 +29,10 @@
         public async Task Run()
         {
             try
-            { 
-                var taskWrapper = await Task.WhenAny(
+            {
+                await await Task.WhenAny(
                     Task.Run(() => GetCommandsFromStdin()),
-                    Task.Run(() => HandleCommands()))
-                    .ConfigureAwait(false);
-                await taskWrapper.ConfigureAwait(false);
+                    Task.Run(() => HandleCommands())).ConfigureAwait(false);
             }
             catch (Exception e)
             {

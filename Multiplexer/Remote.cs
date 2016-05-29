@@ -110,7 +110,7 @@
                 var uplinkTask = Task.Run(HandleUplink, linkedCTS.Token);
 
                 // If either task returns, the connection is considered to be terminated.
-                await (await Task.WhenAny(downlinkTask, uplinkTask).ConfigureAwait(false)).ConfigureAwait(false);
+                await await Task.WhenAny(downlinkTask, uplinkTask).ConfigureAwait(false);
             }
             catch (Exception e)
             {

@@ -65,7 +65,7 @@
             try
             {
                 // Await for either of the downlink or uplink task to finish
-                await (await Task.WhenAny(uplinkTask, downlinkTask).ConfigureAwait(false)).ConfigureAwait(false);
+                await await Task.WhenAny(uplinkTask, downlinkTask).ConfigureAwait(false);
             }
             catch (Exception e)
             {
