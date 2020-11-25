@@ -1,35 +1,18 @@
 ﻿namespace Multiplexer
 {
     using System;
+    using System.IO;
     using System.Collections.Concurrent;
     using System.Linq;
-    using System.Net.Sockets;
     using System.Threading;
     using System.Threading.Tasks;
 
     /// <summary>
-    /// An interface to expose read-only remote connection information
-    /// </summary>
-    public interface IRemoteInfo
-    {
-        /// <summary>
-        /// Whether connected to the remote service
-        /// </summary>
-        bool Connected { get; }
-
-        /// <summary>
-        /// Remote address
-        /// </summary>
-        string RemoteAddress { get; }
-    }
-
-    /// <summary>
     /// Class to manage connection to the remote server
     /// </summary>
-    class Remote : IDisposable, IRemoteInfo
+    class Remote : IDisposable
     {
-        readonly TcpClient client;
-        readonly NetworkStream stream;
+        readonly Stream stream;
 
         /// <summary>
         /// A delegate called on receiving a package. Implementation could be submitting the package to the queue.
@@ -49,20 +32,16 @@
         /// </summary>
         readonly CancellationTokenSource linkedCTS;
 
-        public bool Connected => client.Connected;
-        public string RemoteAddress => $"{client.Client.RemoteEndPoint}";
-
         public Remote(
-            TcpClient client,
+            Stream stream,
             BlockingCollection<byte[]> uplinkQueue,
             CancellationToken externalCancellationToken, 
             Action<byte[]> receive)
         {
-            this.client = client;
             this.uplinkQueue = uplinkQueue;
             this.receive = receive;
             linkedCTS = CancellationTokenSource.CreateLinkedTokenSource(externalCancellationToken);
-            stream = client.GetStream();
+            this.stream = stream;
         }
 
         /// <summary>
@@ -130,7 +109,6 @@
             Console.WriteLine("Disposing of remote connection");
             linkedCTS.Dispose();
             stream.Dispose();
-            client.Close();
         }
     }
 }

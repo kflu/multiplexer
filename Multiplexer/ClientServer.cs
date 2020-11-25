@@ -4,6 +4,7 @@
     using System.Net;
     using System.Net.Sockets;
     using System.Threading.Tasks;
+
     /// <summary>
     /// Listens to connection requests and manages client connections
     /// </summary>
@@ -72,11 +73,7 @@
         /// <param name="data">the outbound data</param>
         void Upload(byte[] data)
         {
-            // Do not enqueue data if remote is not connected (drop it)
-            if (glob.Remote.Connected)
-            {
-                glob.UploadQueue.TryAdd(data);
-            }
+            glob.UploadQueue.TryAdd(data);
         }
     }
 }

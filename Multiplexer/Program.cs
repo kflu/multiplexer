@@ -20,27 +20,10 @@
             var ctrl = new ControlChannel(glob);
             var clientServer = new ClientServer(config.Port, glob);
 
-            if (config.AutoConnect)
+            if (string.IsNullOrEmpty(config.ReadFile) || !File.Exists(config.ReadFile))
             {
-                if (string.IsNullOrEmpty(config.RemoteHost) || config.RemotePort <= 0)
-                {
-                    Console.WriteLine($"Invalid remote host or port: {config.RemoteHost}:{config.RemotePort}");
-                    return -1;
-                }
-
-                clientServer.OnConnected += () =>
-                {
-                    try
-                    {
-                        if (glob.Remote.Connected) return;
-                        Console.WriteLine($"Client connected. Auto-connecting to remote server: {config.RemoteHost} {config.RemotePort}");
-                        ctrl.SubmitCommand($"connect {config.RemoteHost} {config.RemotePort}");
-                    }
-                    catch (Exception e)
-                    {
-                        Console.WriteLine(e);
-                    }
-                };
+                System.Console.WriteLine($"Invalid file to read: {config.ReadFile}");
+                return -1;
             }
 
             Task.WaitAny(ctrl.Run(), clientServer.Run());
@@ -51,15 +34,10 @@
 
     class Configuration
     {
-        [CommandLine.Value(0, MetaName = "remote-host", HelpText = "Remote server to connect (for auto-connect). If not specified, auto-connect is disabled.")]
-        public string RemoteHost { get; set; }
-
-        [CommandLine.Value(1, MetaName = "remote-port", HelpText = "Remote port to connect (for auto-connect). If not specified, auto-connect is disabled.")]
-        public int RemotePort { get; set; }
+        [CommandLine.Value(0, MetaName = "read-file", HelpText = "file to read in")]
+        public string ReadFile { get; set; }
 
         [CommandLine.Option('p', "port", Default = 3333, HelpText = "Local port to listen for client connections")]
         public int Port { get; set; }
-
-        public bool AutoConnect => !string.IsNullOrEmpty(RemoteHost) && RemotePort > 0;
     }
 }
