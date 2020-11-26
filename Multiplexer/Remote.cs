@@ -78,7 +78,6 @@
             // Taking from the queue can be blocked if there's nothing in the queue for consumption
             while (null != (data = uplinkQueue.Take(linkedCTS.Token)))
             {
-                Console.WriteLine("got data for uplink");
                 await uplinkStream.WriteAsync(data, 0, data.Length, linkedCTS.Token).ConfigureAwait(false);
                 await uplinkStream.FlushAsync();  // flush is important to make user input work
             }
