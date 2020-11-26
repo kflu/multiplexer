@@ -20,13 +20,8 @@
             var ctrl = new ControlChannel(glob);
             var clientServer = new ClientServer(config.Port, glob);
 
-            if (string.IsNullOrEmpty(config.ReadFile) || !File.Exists(config.ReadFile))
-            {
-                System.Console.WriteLine($"Invalid file to read: {config.ReadFile}");
-                return -1;
-            }
-
-            Task.WaitAny(ctrl.Run(), clientServer.Run());
+            clientServer.Run();
+            Task.WaitAny(ctrl.StartServer(config.DownLinkFile, config.UpLinkFile));
 
             return 0;
         }
@@ -34,8 +29,12 @@
 
     class Configuration
     {
-        [CommandLine.Value(0, MetaName = "read-file", HelpText = "file to read in")]
-        public string ReadFile { get; set; }
+        [CommandLine.Value(0, MetaName = "downlink-file", HelpText = "downlink")]
+        public string DownLinkFile { get; set; }
+
+
+        [CommandLine.Value(0, MetaName = "uplink-file", HelpText = "uplink")]
+        public string UpLinkFile { get; set; }
 
         [CommandLine.Option('p', "port", Default = 3333, HelpText = "Local port to listen for client connections")]
         public int Port { get; set; }

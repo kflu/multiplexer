@@ -106,6 +106,7 @@
             while (null != (data = downlinkQueue.Take(cts.Token)))
             {
                 await stream.WriteAsync(data, 0, data.Length, cts.Token).ConfigureAwait(false);
+                await stream.FlushAsync();
             }
         }
 

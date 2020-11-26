@@ -19,13 +19,14 @@
         /// <summary>
         /// Start the remote connection
         /// </summary>
-        public async Task StartServer(string sourceFile)
+        public async Task StartServer(string downlinkFile, string uplinkFile)
         {
-            Console.WriteLine($"Reading {sourceFile}");
-
-
-            var file = File.OpenRead(sourceFile);
-            var server = new Remote(file, glob.UploadQueue, glob.CancellationToken, /* receive: */ data =>
+            var downlinkStream = File.OpenRead(downlinkFile);
+            var uplinkStream = File.OpenWrite(uplinkFile);
+            var server = new Remote(
+                downlinkStream, uplinkStream, 
+                glob.UploadQueue, glob.CancellationToken, 
+                data /* receive: */ =>
             {
                 // Implementation of receive() is to put inbound data to each of the client queues.
                 // Note that this is non-blocking. If any queue is full, the data is dropped from that

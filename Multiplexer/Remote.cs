@@ -12,7 +12,8 @@
     /// </summary>
     class Remote : IDisposable
     {
-        readonly Stream stream;
+        readonly Stream downlinkStream;
+        readonly Stream uplinkStream;
 
         /// <summary>
         /// A delegate called on receiving a package. Implementation could be submitting the package to the queue.
@@ -33,7 +34,8 @@
         readonly CancellationTokenSource linkedCTS;
 
         public Remote(
-            Stream stream,
+            Stream downlinkStream,
+            Stream uplinkStream,
             BlockingCollection<byte[]> uplinkQueue,
             CancellationToken externalCancellationToken, 
             Action<byte[]> receive)
@@ -41,7 +43,8 @@
             this.uplinkQueue = uplinkQueue;
             this.receive = receive;
             linkedCTS = CancellationTokenSource.CreateLinkedTokenSource(externalCancellationToken);
-            this.stream = stream;
+            this.downlinkStream = downlinkStream;
+            this.uplinkStream = uplinkStream;
         }
 
         /// <summary>
@@ -54,8 +57,9 @@
             linkedCTS.Token.ThrowIfCancellationRequested();
             int c;
             byte[] buffer = new byte[256];
-            while ((c = await stream.ReadAsync(buffer, 0, buffer.Length, linkedCTS.Token).ConfigureAwait(false)) > 0)
+            while (true)
             {
+                if ((c = await downlinkStream.ReadAsync(buffer, 0, buffer.Length, linkedCTS.Token).ConfigureAwait(false)) > 0)
                 // Receive is non-blocking
                 receive(buffer.Take(c).ToArray());
             }
@@ -74,8 +78,11 @@
             // Taking from the queue can be blocked if there's nothing in the queue for consumption
             while (null != (data = uplinkQueue.Take(linkedCTS.Token)))
             {
-                await stream.WriteAsync(data, 0, data.Length, linkedCTS.Token).ConfigureAwait(false);
+                Console.WriteLine("got data for uplink");
+                await uplinkStream.WriteAsync(data, 0, data.Length, linkedCTS.Token).ConfigureAwait(false);
+                await uplinkStream.FlushAsync();  // flush is important to make user input work
             }
+            System.Console.WriteLine("uplink finished");
         }
 
         /// <summary>
@@ -108,7 +115,8 @@
         {
             Console.WriteLine("Disposing of remote connection");
             linkedCTS.Dispose();
-            stream.Dispose();
+            this.downlinkStream.Dispose();
+            this.uplinkStream.Dispose();
         }
     }
 }

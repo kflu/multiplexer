@@ -73,6 +73,7 @@
         /// <param name="data">the outbound data</param>
         void Upload(byte[] data)
         {
+            System.Console.WriteLine("uploading data");
             glob.UploadQueue.TryAdd(data);
         }
     }
