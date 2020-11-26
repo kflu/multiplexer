@@ -32,7 +32,6 @@
         [CommandLine.Value(0, MetaName = "downlink-file", HelpText = "downlink")]
         public string DownLinkFile { get; set; }
 
-
         [CommandLine.Value(0, MetaName = "uplink-file", HelpText = "uplink")]
         public string UpLinkFile { get; set; }
 
