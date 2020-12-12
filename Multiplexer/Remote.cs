@@ -76,10 +76,21 @@
             byte[] data;
 
             // Taking from the queue can be blocked if there's nothing in the queue for consumption
+            System.Console.WriteLine("taking data from uplink queue");
             while (null != (data = uplinkQueue.Take(linkedCTS.Token)))
             {
-                await uplinkStream.WriteAsync(data, 0, data.Length, linkedCTS.Token).ConfigureAwait(false);
-                await uplinkStream.FlushAsync();  // flush is important to make user input work
+                try
+                {
+                    Console.Error.WriteLine($"start writing data (len: {data.Length})");
+                    await uplinkStream.WriteAsync(data, 0, data.Length, linkedCTS.Token).ConfigureAwait(false);
+                    Console.Error.WriteLine($"Finished writing data (len: {data.Length})");
+                    await uplinkStream.FlushAsync();  // flush is important to make user input work
+                }
+                catch (IOException e)
+                {
+                    Console.Error.WriteLine($"IO Exception ignored: {e}");
+                }
+                System.Console.WriteLine("taking data from uplink queue");
             }
             System.Console.WriteLine("uplink finished");
         }
@@ -89,6 +100,7 @@
         /// </summary>
         public async Task Start()
         {
+            System.Console.WriteLine("Starting remote");
             try
             {
                 var downlinkTask = Task.Run(HandleDownlink, linkedCTS.Token);
@@ -96,6 +108,7 @@
 
                 // If either task returns, the connection is considered to be terminated.
                 await await Task.WhenAny(downlinkTask, uplinkTask).ConfigureAwait(false);
+                System.Console.WriteLine("down/up link task returned");
             }
             catch (Exception e)
             {

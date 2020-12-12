@@ -31,39 +31,47 @@
         /// </summary>
         public async Task Run()
         {
-            var localserver = new TcpListener(IPAddress.Parse("127.0.0.1"), port);
-            localserver.Start();
-
-            while (true)
+            try
             {
-                Console.WriteLine($"Waiting for clients to connect at {localserver.LocalEndpoint}...");
+                var localserver = new TcpListener(IPAddress.Parse("127.0.0.1"), port);
+                localserver.Start();
 
-                // AcceptTcpClientAsync() does not accept a cancellation token. But it's OK since
-                // in no case would I want the client listener loop to stop running during the entire
-                // multiplexer lifecycle. For the sake of completeness, if it is necessary to cancel
-                // this operation, one could use CancellationToken.Register(localserver.Stop).
-                // See: http://stackoverflow.com/a/30856169/695964
-                var client = await localserver.AcceptTcpClientAsync().ConfigureAwait(false);
-
-                var clientWrapper = new Client(client, glob.CancellationToken, Upload);
-                Console.WriteLine($"Client connected: {clientWrapper}");
-
-                // Register client
-                glob.Clients[clientWrapper] = 0;
-
-                // Unregister client when it is terminating
-                clientWrapper.OnClose = () =>
+                while (true)
                 {
-                    Console.WriteLine($"Removing client from clients list: {clientWrapper}");
-                    byte c;
-                    glob.Clients.TryRemove(clientWrapper, out c);
-                };
+                    Console.WriteLine($"Waiting for clients to connect at {localserver.LocalEndpoint}...");
 
-                OnConnected?.Invoke();
+                    // AcceptTcpClientAsync() does not accept a cancellation token. But it's OK since
+                    // in no case would I want the client listener loop to stop running during the entire
+                    // multiplexer lifecycle. For the sake of completeness, if it is necessary to cancel
+                    // this operation, one could use CancellationToken.Register(localserver.Stop).
+                    // See: http://stackoverflow.com/a/30856169/695964
+                    var client = await localserver.AcceptTcpClientAsync().ConfigureAwait(false);
 
-                // Start the client. This is fire-and-forget. We don't want to await on it. I
-                // t's OK because Start() has necessary logic to handle client termination and disposal.
-                var tsk = clientWrapper.Start();
+                    var clientWrapper = new Client(client, glob.CancellationToken, Upload);
+                    Console.WriteLine($"Client connected: {clientWrapper}");
+
+                    // Register client
+                    glob.Clients[clientWrapper] = 0;
+
+                    // Unregister client when it is terminating
+                    clientWrapper.OnClose = () =>
+                    {
+                        Console.WriteLine($"Removing client from clients list: {clientWrapper}");
+                        byte c;
+                        glob.Clients.TryRemove(clientWrapper, out c);
+                    };
+
+                    OnConnected?.Invoke();
+
+                    // Start the client. This is fire-and-forget. We don't want to await on it. I
+                    // t's OK because Start() has necessary logic to handle client termination and disposal.
+                    var tsk = clientWrapper.Start();
+                }
+            }
+            catch (Exception e)
+            {
+                System.Console.WriteLine(e);
+                throw;
             }
         }
 

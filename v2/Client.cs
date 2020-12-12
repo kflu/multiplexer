@@ -12,33 +12,16 @@
     /// </summary>
     class Client : IDisposable
     {
+        public event Func<byte[], Task> OnOutgoingDataAvailable;
+
         readonly TcpClient client;
 
-        /// <summary>
-        /// A delegate to invoke when receiving data from the client socket that should be uploaded.
-        /// 
-        /// Implementation should put this to the outbound queue. This should be non-blocking.
-        /// </summary>
-        readonly Action<byte[]> upload;
         readonly NetworkStream stream;
-
-        /// <summary>
-        /// A queue containing data from remote server that should be delivered to this client
-        /// </summary>
-        readonly BlockingCollection<byte[]> downlinkQueue = new BlockingCollection<byte[]>();
 
         /// <summary>
         /// A cancellation token source linked with an external token
         /// </summary>
         readonly CancellationTokenSource cts;
-
-        public BlockingCollection<byte[]> DownlinkQueue
-        {
-            get
-            {
-                return this.downlinkQueue;
-            }
-        }
 
         /// <summary>
         /// A delegate to be called when the client is closed. The <see cref="ClientServer"/> uses this to 
@@ -70,6 +53,7 @@
             catch (Exception e)
             {
                 Console.WriteLine(e);
+                throw;
             }
             finally
             {

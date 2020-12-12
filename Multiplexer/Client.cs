@@ -88,10 +88,15 @@
             cts.Token.ThrowIfCancellationRequested();
             int c;
             byte[] buffer = new byte[256];
+
+            System.Console.WriteLine("reading for uplink data..");
             while ((c = await stream.ReadAsync(buffer, 0, buffer.Length, cts.Token).ConfigureAwait(false)) > 0)
             {
                 upload(buffer.Take(c).ToArray());
+                System.Console.WriteLine("reading for uplink data..");
             }
+
+            System.Console.WriteLine("no more uplink data");
         }
 
         /// <summary>

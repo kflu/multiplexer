@@ -20,8 +20,11 @@
             var ctrl = new ControlChannel(glob);
             var clientServer = new ClientServer(config.Port, glob);
 
-            clientServer.Run();
-            Task.WaitAny(ctrl.StartServer(config.DownLinkFile, config.UpLinkFile));
+            Task.WaitAny(
+                clientServer.Run(),
+                ctrl.StartServer(config.DownLinkFile, config.UpLinkFile)
+            );
+            System.Console.WriteLine("exiting program");
 
             return 0;
         }
