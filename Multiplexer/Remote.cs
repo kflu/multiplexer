@@ -23,10 +23,15 @@
         string RemoteAddress { get; }
     }
 
+    interface IRemote : IRemoteInfo, IDisposable
+    {
+        Task Start();
+    }
+
     /// <summary>
     /// Class to manage connection to the remote server
     /// </summary>
-    class Remote : IDisposable, IRemoteInfo
+    class Remote : IRemote
     {
         readonly TcpClient client;
         readonly NetworkStream stream;
