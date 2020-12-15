@@ -95,7 +95,6 @@
         class DummyRemote : IRemoteInfo
         {
             public bool Connected => false;
-            public string RemoteAddress => "";
         }
     }
 }

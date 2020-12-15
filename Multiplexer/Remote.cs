@@ -1,6 +1,7 @@
 ﻿namespace Multiplexer
 {
     using System;
+    using System.IO;
     using System.Collections.Concurrent;
     using System.Linq;
     using System.Net.Sockets;
@@ -16,11 +17,6 @@
         /// Whether connected to the remote service
         /// </summary>
         bool Connected { get; }
-
-        /// <summary>
-        /// Remote address
-        /// </summary>
-        string RemoteAddress { get; }
     }
 
     interface IRemote : IRemoteInfo, IDisposable
@@ -33,9 +29,6 @@
     /// </summary>
     class Remote : IRemote
     {
-        readonly TcpClient client;
-        readonly NetworkStream stream;
-
         /// <summary>
         /// A delegate called on receiving a package. Implementation could be submitting the package to the queue.
         /// </summary>
@@ -54,20 +47,64 @@
         /// </summary>
         readonly CancellationTokenSource linkedCTS;
 
-        public bool Connected => client.Connected;
-        public string RemoteAddress => $"{client.Client.RemoteEndPoint}";
+        readonly string uplinkFifo;
+        readonly string downlinkFifo;
+        readonly ManualResetEvent uplinkReopenRequested = new ManualResetEvent(false);
+        readonly ManualResetEvent downlinkReopenRequested = new ManualResetEvent(false);
+        readonly ManualResetEvent downlinkReady = new ManualResetEvent(false);
+
+        Stream uplink;
+        Stream downlink;
+
+        public bool Connected => uplink != null;
 
         public Remote(
-            TcpClient client,
+            string uplinkFifo,
+            string downlinkFifo,
             BlockingCollection<byte[]> uplinkQueue,
             CancellationToken externalCancellationToken, 
             Action<byte[]> receive)
         {
-            this.client = client;
+            this.uplinkFifo = uplinkFifo;
+            this.downlinkFifo = downlinkFifo;
             this.uplinkQueue = uplinkQueue;
             this.receive = receive;
             linkedCTS = CancellationTokenSource.CreateLinkedTokenSource(externalCancellationToken);
-            stream = client.GetStream();
+        }
+
+        Task ReopenUplink()
+        {
+            while (true)
+            {
+                try
+                {
+                    this.uplinkReopenRequested.WaitOne();
+                    this.uplink = File.OpenWrite(this.uplinkFifo);
+                    this.uplinkReopenRequested.Reset();
+                }
+                catch (Exception e)
+                {
+                    Console.Error.WriteLine($"Error reopening uplink: {e}");
+                }
+            }
+        }
+
+        Task ReopenDownlink()
+        {
+            while (true)
+            {
+                try
+                {
+                    this.downlinkReopenRequested.WaitOne();
+                    this.downlink = File.OpenRead(this.downlinkFifo);
+                    this.downlinkReopenRequested.Reset();
+                    this.downlinkReady.Set();
+                }
+                catch (Exception e)
+                {
+                    Console.Error.WriteLine($"Error reopening downlink: {e}");
+                }
+            }
         }
 
         /// <summary>
@@ -78,12 +115,35 @@
         async Task HandleDownlink()
         {
             linkedCTS.Token.ThrowIfCancellationRequested();
-            int c;
             byte[] buffer = new byte[256];
-            while ((c = await stream.ReadAsync(buffer, 0, buffer.Length, linkedCTS.Token).ConfigureAwait(false)) > 0)
+            while (true)
             {
+                this.downlinkReady.WaitOne();
+                var cachedDownlink = this.downlink;
+                int c = 0;
+                try
+                {
+                    c = await cachedDownlink.ReadAsync(buffer, 0, buffer.Length, linkedCTS.Token).ConfigureAwait(false);
+                }
+                catch (IOException e)
+                {
+                    Console.Error.WriteLine($"Error reading from downlink: {e}");
+                    this.downlink = null;
+                    this.downlinkReopenRequested.Set();
+                    this.downlinkReady.Reset();
+
+                    var t = Task.Run(() =>
+                    {
+                        try { cachedDownlink.Dispose(); }
+                        catch (IOException ex) { Console.Error.WriteLine($"Error disposing downlink: {ex}"); }
+                    });
+                }
+
                 // Receive is non-blocking
-                receive(buffer.Take(c).ToArray());
+                if (c != 0) 
+                {
+                    receive(buffer.Take(c).ToArray());
+                }
             }
         }
 
@@ -95,12 +155,40 @@
         async Task HandleUplink()
         {
             linkedCTS.Token.ThrowIfCancellationRequested();
-            byte[] data;
 
             // Taking from the queue can be blocked if there's nothing in the queue for consumption
-            while (null != (data = uplinkQueue.Take(linkedCTS.Token)))
+            while (true)
             {
-                await stream.WriteAsync(data, 0, data.Length, linkedCTS.Token).ConfigureAwait(false);
+                byte[] data = uplinkQueue.Take(linkedCTS.Token);
+                var cachedUplink = this.uplink;
+                if (cachedUplink == null)
+                {
+                    Console.Error.WriteLine($"Uplink not ready, discarding {data.Length}B");
+                }
+                else
+                {
+                    try
+                    {
+                        await cachedUplink.WriteAsync(data, 0, data.Length, linkedCTS.Token).ConfigureAwait(false);
+                    }
+                    catch (IOException e)
+                    {
+                        Console.Error.WriteLine($"Error writing to uplink: {e}");
+                        this.uplink = null;
+                        this.uplinkReopenRequested.Set();
+
+                        var t = Task.Run(() => {
+                            try
+                            {
+                                cachedUplink.Dispose();
+                            }
+                            catch (IOException ex)
+                            {
+                                Console.Error.WriteLine($"Error disposing uplink: {ex}");
+                            }
+                        });
+                    }
+                }
             }
         }
 
@@ -111,11 +199,18 @@
         {
             try
             {
+                var reopenDownlinkTask = Task.Run(this.ReopenDownlink, linkedCTS.Token);
+                var reopenUplinkTask = Task.Run(this.ReopenUplink, linkedCTS.Token);
                 var downlinkTask = Task.Run(HandleDownlink, linkedCTS.Token);
                 var uplinkTask = Task.Run(HandleUplink, linkedCTS.Token);
 
+                this.downlinkReopenRequested.Set();
+                this.uplinkReopenRequested.Set();
+
                 // If either task returns, the connection is considered to be terminated.
-                await await Task.WhenAny(downlinkTask, uplinkTask).ConfigureAwait(false);
+                await await Task
+                    .WhenAny(reopenDownlinkTask, reopenUplinkTask, downlinkTask, uplinkTask)
+                    .ConfigureAwait(false);
             }
             catch (Exception e)
             {
@@ -134,8 +229,6 @@
         {
             Console.WriteLine("Disposing of remote connection");
             linkedCTS.Dispose();
-            stream.Dispose();
-            client.Close();
         }
     }
 }

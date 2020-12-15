@@ -17,49 +17,43 @@
             }
 
             var glob = new Global(config);
-            var ctrl = new ControlChannel(glob);
             var clientServer = new ClientServer(config.Port, glob);
-
-            if (config.AutoConnect)
-            {
-                if (string.IsNullOrEmpty(config.RemoteHost) || config.RemotePort <= 0)
+            var remote = new Remote(
+                config.UplinkFifo, 
+                config.DownlinkFifo, 
+                glob.UploadQueue, 
+                glob.CancellationToken,
+                /* receive */ data =>
                 {
-                    Console.WriteLine($"Invalid remote host or port: {config.RemoteHost}:{config.RemotePort}");
-                    return -1;
+                    // Implementation of receive() is to put inbound data to each of the client queues.
+                    // Note that this is non-blocking. If any queue is full, the data is dropped from that
+                    // queue.
+                    foreach (var client in glob.Clients)
+                    {
+                        client.Key.DownlinkQueue.TryAdd(data);
+                    }
                 }
+            );
 
-                clientServer.OnConnected += () =>
-                {
-                    try
-                    {
-                        if (glob.Remote.Connected) return;
-                        Console.WriteLine($"Client connected. Auto-connecting to remote server: {config.RemoteHost} {config.RemotePort}");
-                        ctrl.SubmitCommand($"connect {config.RemoteHost} {config.RemotePort}");
-                    }
-                    catch (Exception e)
-                    {
-                        Console.WriteLine(e);
-                    }
-                };
-            }
+            var clientServerTask = Task.Run(clientServer.Run);
+            var remoteTask = Task.Run(remote.Start);
 
-            Task.WaitAny(ctrl.Run(), clientServer.Run());
+            Task.WaitAll(new [] {clientServerTask, remoteTask}, glob.CancellationToken);
 
+            Console.Error.WriteLine($"Program exiting");
             return 0;
         }
     }
 
     class Configuration
     {
-        [CommandLine.Value(0, MetaName = "remote-host", HelpText = "Remote server to connect (for auto-connect). If not specified, auto-connect is disabled.")]
-        public string RemoteHost { get; set; }
-
-        [CommandLine.Value(1, MetaName = "remote-port", HelpText = "Remote port to connect (for auto-connect). If not specified, auto-connect is disabled.")]
-        public int RemotePort { get; set; }
-
         [CommandLine.Option('p', "port", Default = 3333, HelpText = "Local port to listen for client connections")]
         public int Port { get; set; }
 
-        public bool AutoConnect => !string.IsNullOrEmpty(RemoteHost) && RemotePort > 0;
+        [CommandLine.Option('u', "uplink")]
+        public string UplinkFifo {get;set;}
+
+        [CommandLine.Option('d', "downlink")]
+        public string DownlinkFifo {get;set;}
     }
 }
