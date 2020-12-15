@@ -8,25 +8,9 @@
     using System.Threading.Tasks;
 
     /// <summary>
-    /// An interface to expose read-only remote connection information
-    /// </summary>
-    public interface IRemoteInfo
-    {
-        /// <summary>
-        /// Whether connected to the remote service
-        /// </summary>
-        bool Connected { get; }
-
-        /// <summary>
-        /// Remote address
-        /// </summary>
-        string RemoteAddress { get; }
-    }
-
-    /// <summary>
     /// Class to manage connection to the remote server
     /// </summary>
-    class Remote : IDisposable, IRemoteInfo
+    class Remote : IDisposable
     {
         readonly TcpClient client;
         readonly NetworkStream stream;
@@ -48,9 +32,6 @@
         /// Note that the cancellation of the linked source won't propagate to the external token
         /// </summary>
         readonly CancellationTokenSource linkedCTS;
-
-        public bool Connected => client.Connected;
-        public string RemoteAddress => $"{client.Client.RemoteEndPoint}";
 
         public Remote(
             TcpClient client,
