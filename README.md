@@ -24,6 +24,21 @@ $ socat TCP4:remote.server:23 'GOPEN:up,nonblock=1!!GOPEN:down'
 
 ```
 
+**Debug Usage**
+
+For debugging and testing, one can open the up and down fifos in shell:
+
+```
+mkfifo up down
+dotnet run -- -u up -d down -p 3333  # window 1
+telnet localhost 3333  # window 2: client
+cat <>up  # window 3: reading client input to `up`
+cat >down  # window 4: writing to clients
+```
+
+Note that the `<>` is important, explained
+[here](https://unix.stackexchange.com/a/392754/38968)
+
 ## Introduction
 
 *A little outdated, the remote end is now two named pipes, one for uplink, one
