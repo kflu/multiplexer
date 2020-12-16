@@ -1,9 +1,11 @@
 ﻿namespace Multiplexer
 {
     using System;
+    using static Logger;
     using System.IO;
     using System.Threading.Tasks;
     using CommandLine;
+    using System.Text;
 
     class Program
     {
@@ -40,7 +42,7 @@
 
             Task.WaitAll(new [] {clientServerTask, remoteTask}, glob.CancellationToken);
 
-            Console.Error.WriteLine($"Program exiting");
+            Log($"Program exiting");
             return 0;
         }
     }

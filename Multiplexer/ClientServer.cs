@@ -1,9 +1,11 @@
 ﻿namespace Multiplexer
 {
     using System;
+    using static Logger;
     using System.Net;
     using System.Net.Sockets;
     using System.Threading.Tasks;
+
     /// <summary>
     /// Listens to connection requests and manages client connections
     /// </summary>
@@ -35,7 +37,7 @@
 
             while (true)
             {
-                Console.WriteLine($"Waiting for clients to connect at {localserver.LocalEndpoint}...");
+                Log($"Waiting for clients to connect at {localserver.LocalEndpoint}...");
 
                 // AcceptTcpClientAsync() does not accept a cancellation token. But it's OK since
                 // in no case would I want the client listener loop to stop running during the entire
@@ -45,7 +47,7 @@
                 var client = await localserver.AcceptTcpClientAsync().ConfigureAwait(false);
 
                 var clientWrapper = new Client(client, glob.CancellationToken, Upload);
-                Console.WriteLine($"Client connected: {clientWrapper}");
+                Log($"Client connected: {clientWrapper}");
 
                 // Register client
                 glob.Clients[clientWrapper] = 0;
@@ -53,7 +55,7 @@
                 // Unregister client when it is terminating
                 clientWrapper.OnClose = () =>
                 {
-                    Console.WriteLine($"Removing client from clients list: {clientWrapper}");
+                    Log($"Removing client from clients list: {clientWrapper}");
                     byte c;
                     glob.Clients.TryRemove(clientWrapper, out c);
                 };
@@ -72,10 +74,9 @@
         /// <param name="data">the outbound data</param>
         void Upload(byte[] data)
         {
-            // Do not enqueue data if remote is not connected (drop it)
-            if (glob.Remote.Connected)
+            if (!glob.UploadQueue.TryAdd(data))
             {
-                glob.UploadQueue.TryAdd(data);
+                Log($"Cannot add {data.Length}B to upload queue");
             }
         }
     }

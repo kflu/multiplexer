@@ -1,6 +1,7 @@
 ﻿namespace Multiplexer
 {
     using System;
+    using static Logger;
     using System.IO;
     using System.Collections.Concurrent;
     using System.Linq;
@@ -78,13 +79,16 @@
             {
                 try
                 {
+                    Log($"DD waiting uplink reopen req");
                     this.uplinkReopenRequested.WaitOne();
+                    Log($"DD reopening uplink");
                     this.uplink = File.OpenWrite(this.uplinkFifo);
+                    Log($"DD uplink reopened");
                     this.uplinkReopenRequested.Reset();
                 }
                 catch (Exception e)
                 {
-                    Console.Error.WriteLine($"Error reopening uplink: {e}");
+                    Log($"Error reopening uplink: {e}");
                 }
             }
         }
@@ -102,7 +106,7 @@
                 }
                 catch (Exception e)
                 {
-                    Console.Error.WriteLine($"Error reopening downlink: {e}");
+                    Log($"Error reopening downlink: {e}");
                 }
             }
         }
@@ -127,7 +131,7 @@
                 }
                 catch (IOException e)
                 {
-                    Console.Error.WriteLine($"Error reading from downlink: {e}");
+                    Log($"Error reading from downlink: {e}");
                     this.downlink = null;
                     this.downlinkReopenRequested.Set();
                     this.downlinkReady.Reset();
@@ -135,7 +139,7 @@
                     var t = Task.Run(() =>
                     {
                         try { cachedDownlink.Dispose(); }
-                        catch (IOException ex) { Console.Error.WriteLine($"Error disposing downlink: {ex}"); }
+                        catch (IOException ex) { Log($"Error disposing downlink: {ex}"); }
                     });
                 }
 
@@ -160,20 +164,22 @@
             while (true)
             {
                 byte[] data = uplinkQueue.Take(linkedCTS.Token);
+                Log($"Took {data.Length}B from uplink queue");
                 var cachedUplink = this.uplink;
                 if (cachedUplink == null)
                 {
-                    Console.Error.WriteLine($"Uplink not ready, discarding {data.Length}B");
+                    Log($"Uplink not ready, discarding {data.Length}B");
                 }
                 else
                 {
                     try
                     {
                         await cachedUplink.WriteAsync(data, 0, data.Length, linkedCTS.Token).ConfigureAwait(false);
+                        await cachedUplink.FlushAsync();
                     }
                     catch (IOException e)
                     {
-                        Console.Error.WriteLine($"Error writing to uplink: {e}");
+                        Log($"Error writing to uplink: {e}");
                         this.uplink = null;
                         this.uplinkReopenRequested.Set();
 
@@ -184,7 +190,7 @@
                             }
                             catch (IOException ex)
                             {
-                                Console.Error.WriteLine($"Error disposing uplink: {ex}");
+                                Log($"Error disposing uplink: {ex}");
                             }
                         });
                     }
@@ -214,20 +220,20 @@
             }
             catch (Exception e)
             {
-                Console.WriteLine(e);
+                Log(e.ToString());
             }
             finally
             {
                 // Cancel the other task (uplink or downlink)
                 linkedCTS.Cancel();
-                Console.WriteLine("Remote connection exited.");
+                Log("Remote connection exited.");
                 this.Dispose();
             }
         }
 
         public void Dispose()
         {
-            Console.WriteLine("Disposing of remote connection");
+            Log("Disposing of remote connection");
             linkedCTS.Dispose();
         }
     }

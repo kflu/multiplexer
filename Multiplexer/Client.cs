@@ -1,6 +1,7 @@
 ﻿namespace Multiplexer
 {
     using System;
+    using static Logger;
     using System.Collections.Concurrent;
     using System.Linq;
     using System.Net.Sockets;
@@ -69,13 +70,13 @@
             }
             catch (Exception e)
             {
-                Console.WriteLine(e);
+                Log(e.ToString());
             }
             finally
             {
                 // Cancel the other task (uplink or downlink)
                 cts.Cancel();
-                Console.WriteLine("Client closing");
+                Log("Client closing");
                 Dispose();
             }
         }
@@ -106,6 +107,7 @@
             while (null != (data = downlinkQueue.Take(cts.Token)))
             {
                 await stream.WriteAsync(data, 0, data.Length, cts.Token).ConfigureAwait(false);
+                await stream.FlushAsync();
             }
         }
 
@@ -116,7 +118,7 @@
 
         public void Dispose()
         {
-            Console.WriteLine($"Disposing of client: {this}");
+            Log($"Disposing of client: {this}");
             OnClose();
             cts.Dispose();
             stream.Dispose();
