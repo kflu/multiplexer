@@ -148,6 +148,10 @@
                 {
                     receive(buffer.Take(c).ToArray());
                 }
+                else
+                {
+                    await Task.Delay(10);
+                }
             }
         }
 
